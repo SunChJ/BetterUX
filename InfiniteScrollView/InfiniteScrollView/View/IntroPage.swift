@@ -11,12 +11,14 @@ struct IntroPage: View {
     @State private var activeCard: Card? = cards.first
     @State private var scrollPosition: ScrollPosition = .init()
     @State private var currentScrollOffset: CGFloat = 0
-    @State private var timer = Timer.publish(every: 0.01, on: .current, in: .common).autoconnect()
+    @State private var timer = Timer.publish(every: 0.01, on: .current, in: .default).autoconnect()
     @State private var initialAnimation:  Bool = false
+    @State private var titleProgress: CGFloat = 0
     
     var body: some View {
         ZStack {
             AmbientBackground()
+                .animation(.easeInOut(duration: 1), value: activeCard)
             
             VStack(spacing: 40) {
                 InfiniteScrollView {
@@ -27,12 +29,15 @@ struct IntroPage: View {
                 .scrollIndicators(.hidden)
                 .scrollPosition($scrollPosition)
                 .containerRelativeFrame(.vertical) {value, axis in
-                    value  * 0.45
+                    value  * 0.5
                     
                 }
                 .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.x + $0.contentInsets.leading
                 } action: { oldValue, newValue in
                     currentScrollOffset = newValue
+                    
+                    let activeIndex = Int((currentScrollOffset / 220).rounded()) % cards.count
+                    activeCard = cards[activeIndex]
                 }
                 .visualEffect {[initialAnimation] content, proxy in
                     content
@@ -46,8 +51,11 @@ struct IntroPage: View {
                         .blurOpacityEffect(initialAnimation)
                     
                     Text("BetterYeah")
+                        
                         .font(.largeTitle.bold())
                         .foregroundStyle(.white)
+                        .padding(.bottom, 12)
+                        .textRenderer(TitleTextRenderer(progress: titleProgress))
                     
                     Text("Create beautiful invitations for all your events. \nAnyone can receive invitations. Sending included\n with iCloud")
                         .font(.callout)
@@ -57,7 +65,7 @@ struct IntroPage: View {
                 }
                 
                 Button {
-                    
+                    timer.upstream.connect().cancel()
                 } label: {
                     Text("Create Event")
                         .fontWeight(.semibold)
@@ -73,10 +81,13 @@ struct IntroPage: View {
         .onReceive(timer) { _ in
             currentScrollOffset += 0.35
             scrollPosition.scrollTo(x: currentScrollOffset)
+            
+            
+            titleProgress = (titleProgress + 0.25)
         }
         .task {
             try? await Task.sleep(for: .seconds(0.35))
-            withAnimation(.smooth(duration: 0.7, extraBounce: 0)) {
+            withAnimation(.smooth(duration: 0.75, extraBounce: 0)) {
                 initialAnimation = true
             }
         }
