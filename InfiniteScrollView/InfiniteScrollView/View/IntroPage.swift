@@ -82,13 +82,15 @@ struct IntroPage: View {
             currentScrollOffset += 0.35
             scrollPosition.scrollTo(x: currentScrollOffset)
             
-            
-            titleProgress = (titleProgress + 0.25)
         }
         .task {
             try? await Task.sleep(for: .seconds(0.35))
             withAnimation(.smooth(duration: 0.75, extraBounce: 0)) {
                 initialAnimation = true
+            }
+            
+            withAnimation(.smooth(duration: 2.5, extraBounce: 0)) {
+                titleProgress = 10
             }
         }
     }
