@@ -9,6 +9,10 @@ import SwiftUI
 
 struct IntroPage: View {
     @State private var activeCard: Card? = cards.first
+    @State private var scrollPosition: ScrollPosition = .init()
+    @State private var currentScrollOffset: CGFloat = 0
+    @State private var timer = Timer.publish(every: 0.01, on: .current, in: .common).autoconnect()
+    @State private var initialAnimation:  Bool = false
     
     var body: some View {
         ZStack {
@@ -21,12 +25,60 @@ struct IntroPage: View {
                     }
                 }
                 .scrollIndicators(.hidden)
+                .scrollPosition($scrollPosition)
                 .containerRelativeFrame(.vertical) {value, axis in
                     value  * 0.45
                     
                 }
+                .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.x + $0.contentInsets.leading
+                } action: { oldValue, newValue in
+                    currentScrollOffset = newValue
+                }
+                .visualEffect {[initialAnimation] content, proxy in
+                    content
+                        .offset(y: !initialAnimation ? -(proxy.size.height + 200) : 0)
+                }
+                
+                VStack(spacing: 4) {
+                    Text("Welcome to")
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white.secondary)
+                        .blurOpacityEffect(initialAnimation)
+                    
+                    Text("BetterYeah")
+                        .font(.largeTitle.bold())
+                        .foregroundStyle(.white)
+                    
+                    Text("Create beautiful invitations for all your events. \nAnyone can receive invitations. Sending included\n with iCloud")
+                        .font(.callout)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.white.secondary)
+                        .blurOpacityEffect(initialAnimation)
+                }
+                
+                Button {
+                    
+                } label: {
+                    Text("Create Event")
+                        .fontWeight(.semibold)
+                        .padding(.horizontal, 25)
+                        .padding(.vertical, 12)
+                        .background(.white, in: .capsule)
+                }
+                .blurOpacityEffect(initialAnimation)
+
             }
             .safeAreaPadding(15)
+        }
+        .onReceive(timer) { _ in
+            currentScrollOffset += 0.35
+            scrollPosition.scrollTo(x: currentScrollOffset)
+        }
+        .task {
+            try? await Task.sleep(for: .seconds(0.35))
+            withAnimation(.smooth(duration: 0.7, extraBounce: 0)) {
+                initialAnimation = true
+            }
         }
     }
     
@@ -77,4 +129,13 @@ struct IntroPage: View {
 
 #Preview {
     IntroPage()
+}
+
+extension View {
+    func blurOpacityEffect(_ show: Bool) -> some View {
+        self
+            .blur(radius: show ? 0 : 2)
+            .opacity(show ? 1 : 0)
+            .scaleEffect(show ? 1: 0.9)
+    }
 }
