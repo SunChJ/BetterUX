@@ -72,7 +72,16 @@ struct IntroPage: View {
                         .padding(.horizontal, 25)
                         .padding(.vertical, 12)
                         .background(.white, in: .capsule)
+                        #if os(macOS)
+                        .foregroundStyle(.blue)
+                        .contentShape(.capsule)
+                        #endif
                 }
+                .buttonStyle(PlainButtonStyle())
+                #if os(macOS)
+                .focusable(false)
+                .controlSize(.large)
+                #endif
                 .blurOpacityEffect(initialAnimation)
 
             }
