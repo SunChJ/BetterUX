@@ -116,6 +116,13 @@ fileprivate struct InfiniteScrollHelper: NSViewRepresentable {
                     name: NSView.boundsDidChangeNotification,
                     object: scrollView.contentView
                 )
+                
+                // 设置减速率
+                scrollView.horizontalScrollElasticity = .none
+                
+                // 启用鼠标拖动
+                let panGesture = NSPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePanGesture(_:)))
+                scrollView.documentView?.addGestureRecognizer(panGesture)
             }
         }
         
@@ -131,6 +138,7 @@ fileprivate struct InfiniteScrollHelper: NSViewRepresentable {
         var declarationRate: NSScrollView.DecelerationRate
         var contentSize: CGSize
         weak var scrollView: NSScrollView?
+        private var startPoint: NSPoint = .zero
         
         init(declarationRate: NSScrollView.DecelerationRate, contentSize: CGSize) {
             self.declarationRate = declarationRate
@@ -154,6 +162,63 @@ fileprivate struct InfiniteScrollHelper: NSViewRepresentable {
             if minX < 0 {
                 scrollView.contentView.scroll(to: NSPoint(x: minX + contentSize.width, y: scrollView.contentView.bounds.origin.y))
                 scrollView.reflectScrolledClipView(scrollView.contentView)
+            }
+        }
+        
+        // 处理鼠标拖动手势
+        @objc func handlePanGesture(_ gestureRecognizer: NSPanGestureRecognizer) {
+            guard let scrollView = scrollView else { return }
+            
+            switch gestureRecognizer.state {
+            case .began:
+                // 记录开始位置
+                startPoint = scrollView.contentView.bounds.origin
+                
+            case .changed:
+                // 计算拖动距离
+                let translation = gestureRecognizer.translation(in: gestureRecognizer.view)
+                
+                // 更新滚动位置（注意：水平滚动时，向左拖动应该增加contentOffset.x）
+                let newX = startPoint.x - translation.x
+                scrollView.contentView.scroll(to: NSPoint(x: newX, y: startPoint.y))
+                scrollView.reflectScrolledClipView(scrollView.contentView)
+                
+            case .ended, .cancelled:
+                // 根据减速率设置滑动惯性
+                let velocity = gestureRecognizer.velocity(in: gestureRecognizer.view)
+                let decelerationFactor: CGFloat = (declarationRate == .fast) ? 0.99 : 0.95
+                
+                // 简单模拟惯性滚动
+                if abs(velocity.x) > 50 {
+                    let direction: CGFloat = velocity.x > 0 ? -1 : 1
+                    var currentVelocity = min(abs(velocity.x) * 0.2, 500) // 限制最大速度
+                    
+                    // 使用Timer创建减速效果
+                    var timer: Timer?
+                    timer = Timer.scheduledTimer(withTimeInterval: 0.016, repeats: true) { [weak self] t in
+                        guard let self = self, let scrollView = self.scrollView else {
+                            timer?.invalidate()
+                            return
+                        }
+                        
+                        let currentX = scrollView.contentView.bounds.origin.x
+                        let newX = currentX + direction * currentVelocity * 0.016
+                        
+                        scrollView.contentView.scroll(to: NSPoint(x: newX, y: scrollView.contentView.bounds.origin.y))
+                        scrollView.reflectScrolledClipView(scrollView.contentView)
+                        
+                        // 应用减速
+                        currentVelocity *= decelerationFactor
+                        
+                        // 当速度足够小时停止
+                        if currentVelocity < 5 {
+                            timer?.invalidate()
+                        }
+                    }
+                }
+                
+            default:
+                break
             }
         }
     }
